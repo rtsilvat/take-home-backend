@@ -1,0 +1,66 @@
+version: "3.9"
+name: ambev-stack
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ambev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: ambev-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: .
+    container_name: ambev-backend
+    restart: unless-stopped
+    environment:
+      # Defaults if env_file not provided
+      DATABASE_URL: postgresql://appuser:apppass@postgres:5432/appdb
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PORT: 3001
+      NODE_ENV: production
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "3001:3001"
+    working_dir: /app
+    command: ["sh", "-lc", "npm run build && npm run typeorm:run:dist && npm run start:prod"]
+
+  frontend:
+    build:
+      context: ../take-home-frontend
+    container_name: ambev-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_HOST_API: http://localhost:3001
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    working_dir: /app
+    command: ["npm", "run", "start"]
+
+volumes:
+  pg_data:
+  redis_data:
+
+

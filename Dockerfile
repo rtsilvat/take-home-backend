@@ -16,12 +16,8 @@ FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Install only production dependencies
-COPY package*.json ./
-RUN npm ci --omit=dev --no-audit --no-fund
-
-# Copy compiled files
-COPY --from=builder /app/dist ./dist
+# Bring full app (sources, dist, and node_modules with dev deps)
+COPY --from=builder /app .
 
 EXPOSE 3001
 CMD ["npm", "run", "start:prod"]
